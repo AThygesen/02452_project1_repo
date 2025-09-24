@@ -1,2 +1,2 @@
-# 02452_project1_repo
- Project 1 in 02452 machine learning course on DTU 
+# 02452_projecs_repo 
+This is a repo for the projects in 02452 course on Machine Learning at DTU 

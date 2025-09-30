@@ -1,13 +1,16 @@
 import numpy as np
 import pandas as pd
-import os
-from scipy.io import loadmat
-
 import seaborn as sns
 import matplotlib.pyplot as plt
-import re
+import os
 
-# Plotting style (from exercises)
+from sklearn.metrics import confusion_matrix
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.tree import DecisionTreeClassifier, plot_tree
+from sklearn.preprocessing import LabelEncoder, OneHotEncoder
+from sklearn.model_selection import train_test_split
+
+# Plotting style
 sns.set_style('darkgrid')
 sns.set_theme(font_scale=1.)
 
@@ -18,58 +21,83 @@ os.chdir(script_dir)
 # load the dataset
 df = pd.read_excel('data/Concrete_data/Concrete_Data.xls')
 
+# Clean column names: remove everything after ' ('
+df.columns = [col.split(' (')[0] for col in df.columns]
 
 # Select the target variable. Doing it by column number
 X = df.iloc[:, :-1]
 y = pd.Categorical(df.iloc[:, -1])
 
+
+
+######### SECTION FOR HANDLING OUTLIERS #########
+# COMPONENT NAMES 
+
+# 'Cement (component 1)(kg in a m^3 mixture)'
+# 'Blast Furnace Slag (component 2)(kg in a m^3 mixture)'
+# 'Fly Ash (component 3)(kg in a m^3 mixture)'
+# 'Water  (component 4)(kg in a m^3 mixture)'
+# 'Superplasticizer (component 5)(kg in a m^3 mixture)'
+# 'Coarse Aggregate  (component 6)(kg in a m^3 mixture)'
+# 'Fine Aggregate (component 7)(kg in a m^3 mixture)'
+# 'Age (day)'
+# 'Concrete compressive strength(MPa, megapascals)'
+
+mask = (X['Blast Furnace Slag'] < 0.00001) | (X['Fly Ash'] < 0.00001) | (X['Superplasticizer'] < 0.00001)
+
+# Remove outliers with conditional filtering
+X = X[~mask]
+y = y[~mask]
+
+#######################################################
+
 # Check the shape of the data (from exercises)
-N, M = X.shape
-assert N == 1030, "There should be 1030 samples in the Concrete dataset."
-assert M == 8, "There should be 8 components in the Concrete dataset."
+# N, M = X.shape
+# assert N == 1030, "There should be 1030 samples in the Concrete dataset."
+# assert M == 8, "There should be 8 components in the Concrete dataset."
 
 
-############### USED AI FOR THIS ########################
-############## WRITE OUR OWN CODE #######################
+############### BOXPLOT & SUMMARY STATISTICS ###############
 
-# Boxplots of all 8 components
-fig, axs = plt.subplots(1, M, figsize=(2.2*M + 2, 5))  # no shared y so each feature auto-scales
-fig.suptitle("Boxplots of Concrete Dataset components", y=0.98, fontsize=12)
+# Plot a boxplot of the attributes in X
+#X.plot(kind='box', subplots=True, layout=(3, 3), figsize=(22,10), sharex=False, sharey=False)
+#plt.show()
 
-for idx, col in enumerate(X.columns):
-	ax = axs[idx]
-	col_data = X[col].values
-	# Using matplotlib's boxplot for fine control
-	bp = ax.boxplot(col_data, vert=True, patch_artist=True,
-					boxprops=dict(facecolor=f"C{idx}", alpha=0.45, color=f"C{idx}"),
-					medianprops=dict(color='black', linewidth=1.2),
-					whiskerprops=dict(color=f"C{idx}"),
-					capprops=dict(color=f"C{idx}"),
-					flierprops=dict(marker='o', markerfacecolor=f"C{idx}", markersize=3, markeredgecolor='none', alpha=0.55))
+# Compute summary statistics
+#print(X.describe())
 
-	# Dynamic y-limits with small padding
-	dmin, dmax = col_data.min(), col_data.max()
-	rng = dmax - dmin
-	pad = 0.05 * rng if rng > 0 else 1
-	ax.set_ylim(dmin - pad, dmax + pad)
+###########################################################
 
-	# Build a title without any parenthetical units or component annotations
-	clean_title = re.sub(r'\([^)]*\)', '', col)  # remove all (...) segments
-	clean_title = re.sub(r'\s+', ' ', clean_title).strip()
-	# Extract unit from column name: take the last parenthetical group that is not a component descriptor
-	matches = re.findall(r'\(([^()]*)\)', col)
-	unit = None
-	if matches:
-		for m in reversed(matches):
-			if 'component' not in m.lower():
-				unit = m.strip()
-				break
-		if unit is None:  # fallback to last
-			unit = matches[-1].strip()
-	ax.set_ylabel(unit if unit else "Value", fontsize=7)
 
-plt.tight_layout()
+######### CORRELATION MATRIX FROM LECTURE 3 #########
+
+# Transform the target variable into a numerical format
+y_numerical = y.codes
+# Convert y_numerical to a pandas Series with a name
+y_numerical_series = pd.Series(y_numerical, index=X.index, name="Target")
+# Construct the modified dataframe
+df_tilde = pd.concat([X, y_numerical_series], axis=1)
+# Compute the correlation matrix
+correlation_matrix = df_tilde.corr()
+
+# Plot the correlation matrix
+fig = plt.figure(figsize=(12, 10))
+fig.suptitle('Correlation matrix of the standardized data', fontsize=16)
+plt.imshow(correlation_matrix, cmap='RdBu_r', vmin=-1, vmax=1)
+plt.colorbar()
+plt.xticks(ticks=np.arange(correlation_matrix.shape[1]), labels=list(X.columns) + ["Concrete compressive strength"], rotation=90)
+plt.yticks(ticks=np.arange(correlation_matrix.shape[1]), labels=list(X.columns) + ["Concrete compressive strength"])
+plt.grid(False)
+
+#### FIND REFERENCE FOR THIS ####
+# Print correlation values in each box
+for i in range(correlation_matrix.shape[0]):
+	for j in range(correlation_matrix.shape[1]):
+		plt.text(j, i, f"{correlation_matrix.iloc[i, j]:.2f}", ha='center', va='center', color='black', fontsize=9)
+
+################################
+
 plt.show()
-##################### END OF AI CODE #####################
 
-############## END OF OUR CODE ###########################
+
+########## END OF CODE ##########

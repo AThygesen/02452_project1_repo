@@ -21,7 +21,7 @@ os.chdir(script_dir)
 # load the dataset
 df = pd.read_excel('data/Concrete_data/Concrete_Data.xls')
 
-# Clean column names: remove everything after ' ('
+# Clean column names ## GET REFERENCE FOR THIS ##
 df.columns = [col.split(' (')[0] for col in df.columns]
 
 # Select the target variable. Doing it by column number
